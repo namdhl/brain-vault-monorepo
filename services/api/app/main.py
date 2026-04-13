@@ -5,10 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .auth import require_api_key
 from .config import ensure_dirs
+from .jwt_auth import router as auth_router
 from .logging_config import setup_logging
 from .middleware import RequestLoggingMiddleware
 from .rate_limit import setup_rate_limit
 from .routes.assets import router as assets_router
+from .routes.backup import router as backup_router
 from .routes.health import router as health_router
 from .routes.items import router as items_router
 from .routes.jobs import router as jobs_router
@@ -40,6 +42,7 @@ app.add_middleware(
 # Public routes (no auth)
 app.include_router(health_router)
 app.include_router(metrics_router)
+app.include_router(auth_router)  # /v1/auth/token is public (issues tokens)
 
 # Protected routes
 app.include_router(items_router)
@@ -47,3 +50,4 @@ app.include_router(uploads_router)
 app.include_router(assets_router)
 app.include_router(jobs_router)
 app.include_router(search_router)
+app.include_router(backup_router)

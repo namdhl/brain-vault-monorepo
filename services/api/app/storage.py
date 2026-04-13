@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import ASSETS_DIR, ITEMS_DIR, QUEUED_JOBS_DIR, UPLOADS_DIR
+from .queue import enqueue as _queue_enqueue
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -35,8 +36,9 @@ def list_items(limit: int = 50) -> list[dict[str, Any]]:
 
 # ── Jobs ──────────────────────────────────────────────────────────────────────
 
-def enqueue_job(job: dict[str, Any]) -> None:
-    _write_json(QUEUED_JOBS_DIR / f"{job['job_id']}.json", job)
+def enqueue_job(job: dict[str, Any]) -> str:
+    """Enqueue a job. Returns storage mode ('redis' or 'file')."""
+    return _queue_enqueue(job)
 
 
 # ── Assets ────────────────────────────────────────────────────────────────────

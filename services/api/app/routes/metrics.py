@@ -8,6 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from ..config import ASSETS_DIR, FAILED_JOBS_DIR, ITEMS_DIR, PROCESSED_JOBS_DIR, QUEUED_JOBS_DIR
+from ..queue import is_redis_available, queue_depth
 from ..storage import list_items
 
 router = APIRouter(prefix="/v1/metrics", tags=["metrics"])
@@ -43,9 +44,10 @@ def get_metrics() -> dict:
             "by_source": source_counts,
         },
         "queue": {
-            "queued": _count_json(QUEUED_JOBS_DIR),
+            "queued": queue_depth()["depth"],
             "processed": _count_json(PROCESSED_JOBS_DIR),
             "failed": _count_json(FAILED_JOBS_DIR),
+            "backend": "redis" if is_redis_available() else "file",
         },
         "assets": {
             "total": _count_json(ASSETS_DIR),

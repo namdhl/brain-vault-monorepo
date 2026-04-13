@@ -107,15 +107,15 @@
 ### 5.1 Storage & queue migration
 - [x] Metadata sang Postgres.
 - [x] Assets sang S3/MinIO.
-- [ ] Queue bền vững (Redis/RabbitMQ/Temporal). *(next milestone)*
+- [x] Queue bền vững (Redis/RabbitMQ/Temporal).
 
 ### 5.2 Security & auth
-- [ ] JWT/session auth cho web/desktop. *(next milestone)*
+- [x] JWT/session auth cho web/desktop.
 - [x] API key hoặc OAuth proxy cho API public.
 - [x] Rate limit endpoint public + secret management.
 
 ### 5.3 Reliability
-- [ ] Backup policy cho metadata/assets. *(next milestone)*
+- [x] Backup policy cho metadata/assets.
 - [x] Retry/backoff + DLQ.
 - [x] Dashboard theo dõi lỗi theo stage.
 
@@ -149,3 +149,7 @@ Một phase được xem là hoàn thành khi:
 - 2026-04-13 | [Phase 2.3] | Worker media support | Status: [x] | Notes: media.py - _probe_image() đọc PNG/JPEG header cho width/height, copy_asset_to_vault() copy file vào vault/Assets/YYYY/MM/DD/<item_id>/, process_assets_for_item() gọi trước export. markdown.py nhận asset_paths, render ## Assets section với wikilinks, frontmatter thêm asset_paths. | Files: `services/worker/app/media.py`, `services/worker/app/markdown.py`, `services/worker/app/main.py`, `services/worker/app/config.py`
 - 2026-04-13 | [Phase 2.1+2.2] | Upload API + Asset modeling | Status: [x] | Notes: POST /v1/uploads/init (MIME+size validation), POST /v1/uploads/{id}/file (streaming multipart, chunk read), DELETE /v1/uploads/{id}, POST /v1/items/from-upload (create Item+Asset from session), GET /v1/items/{id}/assets. AssetRecord schema, UploadSession schema, ALLOWED_MIME_TYPES+MAX_UPLOAD_BYTES config. | Files: `services/api/app/config.py`, `services/api/app/schemas.py`, `services/api/app/storage.py`, `services/api/app/routes/uploads.py`, `services/api/app/routes/assets.py`, `services/api/app/main.py`
 - 2026-04-13 | [Phase 1.5] | Telegram bot improvements | Status: [x] | Notes: _detect_type() tách riêng, set original_url cho link type, thêm _send_message() reply lại user (best-effort, cần TELEGRAM_BOT_TOKEN), response trả về item_id + status thay vì created_item object. | Files: `services/telegram-bot/app/main.py`
+- 2026-04-13 | [Phase 5.1c] | Redis queue adapter | Status: [x] | Notes: queue.py dual-mode (file/Redis) với lazy init, enqueue() tự fallback về file nếu Redis không có, queue_depth() kiểm tra Redis list length hoặc đếm file, rq_worker.py dùng BRPOP block-wait, storage.enqueue_job() gọi queue.enqueue(), metrics cập nhật dùng queue_depth(). Worker requirements thêm redis. | Files: `services/api/app/queue.py`, `services/worker/app/rq_worker.py`, `services/api/app/storage.py`, `services/api/app/routes/metrics.py`, `services/worker/requirements.txt`, `services/api/requirements.txt`
+- 2026-04-13 | [Phase 5.2b] | JWT session auth | Status: [x] | Notes: jwt_auth.py - POST /v1/auth/token (login, trả JWT), GET /v1/auth/me (user info), require_jwt() dependency, sha256 password hash, python-jose lazy import, BRAINVAULT_USERS env (user:pass,user2:pass2), JWT_AUTH_ENABLED=false default. main.py thêm auth_router (public). | Files: `services/api/app/jwt_auth.py`, `services/api/app/main.py`, `services/api/requirements.txt`
+- 2026-04-13 | [Phase 5.3b] | Backup policy | Status: [x] | Notes: backup.py - create_backup() tar.gz items/+assets/+vault/ với timestamp, list_backups(), CLI (python -m app.backup [--list] [--output-dir]), routes/backup.py - GET /v1/backup/list + POST /v1/backup/create. | Files: `services/api/app/backup.py`, `services/api/app/routes/backup.py`, `services/api/app/main.py`
+- 2026-04-13 | [Infra] | docker-compose, .env.example cập nhật | Status: [x] | Notes: docker-compose thêm redis service (redis:7-alpine, persist, healthcheck), api/worker services với depends_on+env, minio healthcheck. .env.example bổ sung REDIS_URL, JWT_*, BACKUP_DIR, OBJECT_STORAGE_BACKEND, S3_*, BRAINVAULT_USERS, RATE_LIMIT_ENABLED. | Files: `docker-compose.yml`, `.env.example`

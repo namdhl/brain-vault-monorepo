@@ -1,2 +1,4 @@
 pyyaml
 markitdown
+# Redis queue (optional; only required when REDIS_URL is set)
+redis
