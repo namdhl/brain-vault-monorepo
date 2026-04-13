@@ -31,9 +31,9 @@
 - [x] Đảm bảo idempotency tối thiểu (rerun không tạo note trùng khi output đã hợp lệ).
 
 ### 1.3 Vault exporter
-- [ ] Chuẩn hóa frontmatter tối thiểu: `id,type,source,created_at,updated_at,status,tags,original_url`.
-- [ ] Chuẩn hóa naming file note (sanitize + slug + suffix item id).
-- [ ] Ghi note vào đúng cấu trúc `vault/Inbox/YYYY/MM`.
+- [x] Chuẩn hóa frontmatter tối thiểu: `id,type,source,created_at,updated_at,status,tags,original_url`.
+- [x] Chuẩn hóa naming file note (sanitize + slug + suffix item id).
+- [x] Ghi note vào đúng cấu trúc `vault/Inbox/YYYY/MM`.
 
 ### 1.4 Web app screens tối thiểu
 - [ ] Hoàn thiện capture form với UX phản hồi `queued` ngay.
@@ -139,3 +139,4 @@ Một phase được xem là hoàn thành khi:
 - 2026-04-13 | [Planning] | Tạo task board ban đầu từ detailed spec | Status: [x] | Notes: Chia theo 5 phase để triển khai tuần tự, có checkpoint và DoD. | Files/PR: `docs/tasks.md`
 - 2026-04-13 | [Phase 1.1] | Backend schema & contracts | Status: [x] | Notes: Mở rộng ItemRecord (processed_at, language, canonical_hash, summary, error fields), thêm ItemStatus enum, validate payload (title max 500, content max 50000, tags max 20), tạo errors.py với api_error helper, job schema cập nhật stage/status/attempt. | Files: `services/api/app/schemas.py`, `services/api/app/errors.py`, `services/api/app/routes/items.py`
 - 2026-04-13 | [Phase 1.2] | Worker pipeline stages + error handling | Status: [x] | Notes: Thêm PermanentError/TransientError class, stage tracking (raw_persisted→normalized→vault_exported→completed), idempotency check (skip nếu note đã tồn tại + status=processed), lưu error_code/error_message/failed_stage vào item và job khi fail. | Files: `services/worker/app/main.py`
+- 2026-04-13 | [Phase 1.3] | Vault exporter improvements | Status: [x] | Notes: _slugify() dùng unicodedata NFKD+ASCII để tạo slug an toàn, giới hạn 80 ký tự trước suffix, frontmatter đầy đủ (status, processed_at, language, canonical_hash, summary khi có), body thêm Summary section và Entities placeholder, Processing Notes cập nhật. | Files: `services/worker/app/markdown.py`
