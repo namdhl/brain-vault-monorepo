@@ -20,10 +20,10 @@
 ## Phase 1 — MVP usable (nền tảng bắt buộc)
 
 ### 1.1 Backend schema & contracts
-- [ ] Mở rộng `ItemRecord` theo spec (status, processed_at, language, canonical_hash, error fields cơ bản).
-- [ ] Chuẩn hóa enum `ItemType`, `ItemSource`, `ItemStatus` dùng nhất quán API/worker.
-- [ ] Bổ sung validate payload chặt hơn cho `POST /v1/items`.
-- [ ] Thêm chuẩn response lỗi thống nhất (`error.code`, `error.message`, `details`).
+- [x] Mở rộng `ItemRecord` theo spec (status, processed_at, language, canonical_hash, error fields cơ bản).
+- [x] Chuẩn hóa enum `ItemType`, `ItemSource`, `ItemStatus` dùng nhất quán API/worker.
+- [x] Bổ sung validate payload chặt hơn cho `POST /v1/items`.
+- [x] Thêm chuẩn response lỗi thống nhất (`error.code`, `error.message`, `details`).
 
 ### 1.2 Worker pipeline local
 - [ ] Chuẩn hóa stage pipeline: `ingest_received -> raw_persisted -> normalized -> enriched -> vault_exported -> completed`.
@@ -137,3 +137,4 @@ Một phase được xem là hoàn thành khi:
 > `- YYYY-MM-DD | [Phase X] | Task: ... | Status: [~]/[x] | Notes: ... | Files/PR: ...`
 
 - 2026-04-13 | [Planning] | Tạo task board ban đầu từ detailed spec | Status: [x] | Notes: Chia theo 5 phase để triển khai tuần tự, có checkpoint và DoD. | Files/PR: `docs/tasks.md`
+- 2026-04-13 | [Phase 1.1] | Backend schema & contracts | Status: [x] | Notes: Mở rộng ItemRecord (processed_at, language, canonical_hash, summary, error fields), thêm ItemStatus enum, validate payload (title max 500, content max 50000, tags max 20), tạo errors.py với api_error helper, job schema cập nhật stage/status/attempt. | Files: `services/api/app/schemas.py`, `services/api/app/errors.py`, `services/api/app/routes/items.py`

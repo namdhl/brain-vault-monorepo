@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
+from ..errors import api_error
 from ..schemas import CreateItemInput, ItemRecord
 from ..storage import enqueue_job, list_items, load_item, save_item
 
@@ -20,7 +21,7 @@ def get_items(limit: int = 20) -> list[dict]:
 def get_item(item_id: str) -> dict:
     item = load_item(item_id)
     if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+        raise api_error(404, "ITEM_NOT_FOUND", "Item not found")
     return item
 
 
@@ -41,8 +42,12 @@ def create_item(payload: CreateItemInput) -> dict:
     job = {
         "job_id": uuid4().hex,
         "item_id": item_id,
-        "stage": "normalize_and_export",
+        "stage": "raw_persisted",
+        "status": "queued",
+        "attempt": 0,
         "created_at": now,
+        "updated_at": now,
+        "error": None,
     }
     enqueue_job(job)
 
