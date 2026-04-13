@@ -10,12 +10,14 @@ from pathlib import Path
 
 from .config import (
     ARTIFACTS_DIR,
+    DLQ_DIR,
     FAILED_JOBS_DIR,
     ITEMS_DIR,
     PROCESSED_JOBS_DIR,
     QUEUED_JOBS_DIR,
     ensure_dirs,
 )
+from .retry_policy import classify_for_dlq, retry_wait_elapsed, should_retry
 from .logging_config import setup_logging
 from .markdown import export_item_to_vault
 from .media import process_assets_for_item
@@ -150,28 +152,59 @@ def process_all() -> list[dict]:
     for job_path in sorted(QUEUED_JOBS_DIR.glob("*.json")):
         job_id = job_path.stem
         try:
+            # Load job to check retry policy before processing
+            job_meta = load_json(job_path)
+
+            # Check DLQ: exceeded max attempts
+            if classify_for_dlq(job_meta):
+                DLQ_DIR.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(job_path), DLQ_DIR / job_path.name)
+                item_id = job_meta.get("item_id", "?")
+                item_path = ITEMS_DIR / f"{item_id}.json"
+                if item_path.exists():
+                    item = load_json(item_path)
+                    _mark_item_failed(item, item_path, "MAX_ATTEMPTS_EXCEEDED", "Job moved to DLQ after too many retries", job_meta.get("stage", "unknown"))
+                logger.warning("job_moved_to_dlq", extra={"job_id": job_id, "item_id": item_id, "attempt": job_meta.get("attempt")})
+                results.append({"job_id": job_id, "status": "dlq", "item_id": item_id})
+                continue
+
+            # Check backoff: not ready to retry yet
+            if not retry_wait_elapsed(job_meta):
+                logger.info("job_backoff_wait", extra={"job_id": job_id, "attempt": job_meta.get("attempt")})
+                continue
+
             results.append(process_job(job_path))
         except Exception as exc:
             error_code = getattr(exc, "code", "INTERNAL_ERROR")
             error_message = str(exc)
             failed_stage = "unknown"
+            item_id = "?"
             try:
-                job = load_json(job_path)
-                failed_stage = job.get("stage", "unknown")
-                item_id = job.get("item_id", "?")
+                job_meta = load_json(job_path)
+                failed_stage = job_meta.get("stage", "unknown")
+                item_id = job_meta.get("item_id", "?")
                 item_path = ITEMS_DIR / f"{item_id}.json"
                 if item_path.exists():
                     item = load_json(item_path)
                     _mark_item_failed(item, item_path, error_code, error_message, failed_stage)
+                # Increment attempt count and move back to queue (or failed if permanent)
+                is_permanent = isinstance(exc, PermanentError)
+                if is_permanent:
+                    FAILED_JOBS_DIR.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(job_path), FAILED_JOBS_DIR / job_path.name)
+                else:
+                    # Transient: increment attempt, leave in queue for retry
+                    job_meta["attempt"] = job_meta.get("attempt", 0) + 1
+                    job_meta["updated_at"] = _now()
+                    job_meta["error"] = error_message
+                    save_json(job_path, job_meta)
             except Exception:
-                item_id = "?"
+                pass
             logger.error(
                 "job_failed",
                 extra={"job_id": job_id, "item_id": item_id, "error_code": error_code, "failed_stage": failed_stage},
                 exc_info=True,
             )
-            FAILED_JOBS_DIR.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(job_path), FAILED_JOBS_DIR / job_path.name)
             results.append({"job_id": job_id, "status": "failed", "error_code": error_code, "error_message": error_message, "failed_stage": failed_stage})
     return results
 

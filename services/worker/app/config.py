@@ -10,6 +10,7 @@ ARTIFACTS_DIR = DATA_DIR / "artifacts"
 QUEUED_JOBS_DIR = DATA_DIR / "jobs" / "queued"
 PROCESSED_JOBS_DIR = DATA_DIR / "jobs" / "processed"
 FAILED_JOBS_DIR = DATA_DIR / "jobs" / "failed"
+DLQ_DIR = DATA_DIR / "jobs" / "dlq"
 
 VAULT_DIR = Path(os.getenv("BRAINVAULT_VAULT_DIR", str(BASE_DIR / "vault")))
 VAULT_INBOX_DIR = VAULT_DIR / "Inbox"
@@ -25,6 +26,7 @@ def ensure_dirs() -> None:
         QUEUED_JOBS_DIR,
         PROCESSED_JOBS_DIR,
         FAILED_JOBS_DIR,
+        DLQ_DIR,
         VAULT_DIR,
         VAULT_INBOX_DIR,
         VAULT_NOTES_DIR,

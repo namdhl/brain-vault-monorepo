@@ -105,19 +105,19 @@
 ## Phase 5 — Productionize
 
 ### 5.1 Storage & queue migration
-- [ ] Metadata sang Postgres.
-- [ ] Assets sang S3/MinIO.
-- [ ] Queue bền vững (Redis/RabbitMQ/Temporal).
+- [x] Metadata sang Postgres.
+- [x] Assets sang S3/MinIO.
+- [ ] Queue bền vững (Redis/RabbitMQ/Temporal). *(next milestone)*
 
 ### 5.2 Security & auth
-- [ ] JWT/session auth cho web/desktop.
-- [ ] API key hoặc OAuth proxy cho API public.
-- [ ] Rate limit endpoint public + secret management.
+- [ ] JWT/session auth cho web/desktop. *(next milestone)*
+- [x] API key hoặc OAuth proxy cho API public.
+- [x] Rate limit endpoint public + secret management.
 
 ### 5.3 Reliability
-- [ ] Backup policy cho metadata/assets.
-- [ ] Retry/backoff + DLQ.
-- [ ] Dashboard theo dõi lỗi theo stage.
+- [ ] Backup policy cho metadata/assets. *(next milestone)*
+- [x] Retry/backoff + DLQ.
+- [x] Dashboard theo dõi lỗi theo stage.
 
 ---
 
@@ -141,6 +141,7 @@ Một phase được xem là hoàn thành khi:
 - 2026-04-13 | [Phase 1.2] | Worker pipeline stages + error handling | Status: [x] | Notes: Thêm PermanentError/TransientError class, stage tracking (raw_persisted→normalized→vault_exported→completed), idempotency check (skip nếu note đã tồn tại + status=processed), lưu error_code/error_message/failed_stage vào item và job khi fail. | Files: `services/worker/app/main.py`
 - 2026-04-13 | [Phase 1.3] | Vault exporter improvements | Status: [x] | Notes: _slugify() dùng unicodedata NFKD+ASCII để tạo slug an toàn, giới hạn 80 ký tự trước suffix, frontmatter đầy đủ (status, processed_at, language, canonical_hash, summary khi có), body thêm Summary section và Entities placeholder, Processing Notes cập nhật. | Files: `services/worker/app/markdown.py`
 - 2026-04-13 | [Phase 1.4] | Web app screens | Status: [x] | Notes: Tạo Nav component (sticky, active link), /items (table + filter by status), /items/[id] (metadata + content + error detail), /jobs (stat cards + tab by status + refresh), globals.css bổ sung badge/table/filter/stat-card/detail styles. | Files: `apps/web/components/nav.tsx`, `apps/web/app/items/page.tsx`, `apps/web/app/items/[id]/page.tsx`, `apps/web/app/jobs/page.tsx`, `apps/web/app/layout.tsx`, `apps/web/app/page.tsx`, `apps/web/app/globals.css`
+- 2026-04-13 | [Phase 5] | Productionize: Postgres, S3, auth, rate limit, retry/DLQ, metrics UI | Status: [x] | Notes: db/models.py (SQLAlchemy ORM: Item/Asset/Job/UploadSession), db/session.py (dual-mode JSON/Postgres), alembic migrations (0001 initial schema + indexes), object_storage.py (LocalStorageBackend + S3StorageBackend adapter), auth.py (API key via Bearer header, API_KEY_REQUIRED env), rate_limit.py (slowapi wrapper, RATE_LIMIT_ENABLED env), retry_policy.py (backoff schedule 0/30/300/1800s, DLQ after MAX_ATTEMPTS), worker DLQ dir + transient/permanent split, /metrics web page (bar charts per status/type/source). | Files: `services/api/app/db/`, `services/api/alembic/`, `services/api/app/object_storage.py`, `services/api/app/auth.py`, `services/api/app/rate_limit.py`, `services/worker/app/retry_policy.py`, `apps/web/app/metrics/page.tsx`
 - 2026-04-13 | [Phase 4.3] | Structured logging + metrics | Status: [x] | Notes: JsonFormatter (JSON lines), ContextVar request_id, RequestLoggingMiddleware (entry/exit/duration_ms), GET /v1/metrics (items by status/type/source, queue depth, asset count). Worker logging cho từng stage với duration_ms. | Files: `services/api/app/logging_config.py`, `services/api/app/middleware.py`, `services/api/app/routes/metrics.py`, `services/worker/app/logging_config.py`, `services/worker/app/main.py`
 - 2026-04-13 | [Phase 4.2 Web] | Search UI | Status: [x] | Notes: /search page debounced input, type+status filter, snippet display, #tags. Nav thêm Search link. | Files: `apps/web/app/search/page.tsx`, `apps/web/components/nav.tsx`
 - 2026-04-13 | [Phase 4.1+4.2] | Jobs API + Search API | Status: [x] | Notes: routes/jobs.py - GET /v1/jobs/{id}, POST /v1/jobs/{id}/retry (re-enqueue với attempt+1, archive old job), GET /v1/jobs list scan 3 dirs. routes/search.py - GET /v1/search với 7 filter params, snippet highlight quanh match, limit 20. | Files: `services/api/app/routes/jobs.py`, `services/api/app/routes/search.py`, `services/api/app/main.py`
