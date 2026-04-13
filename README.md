@@ -50,6 +50,11 @@ brain-vault-monorepo/
   docs/
 ```
 
+## Planning & execution
+
+- Detailed spec (VI): `brain-vault-detailed-spec.vi.md`
+- Task board for phased implementation: `docs/tasks.md`
+
 ## Quick start
 
 ### API
