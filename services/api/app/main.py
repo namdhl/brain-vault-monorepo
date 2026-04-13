@@ -15,6 +15,8 @@ from .routes.health import router as health_router
 from .routes.items import router as items_router
 from .routes.jobs import router as jobs_router
 from .routes.metrics import router as metrics_router
+from .routes.profile import router as profile_router
+from .routes.query import router as query_router
 from .routes.search import router as search_router
 from .routes.uploads import router as uploads_router
 
@@ -51,3 +53,5 @@ app.include_router(assets_router)
 app.include_router(jobs_router)
 app.include_router(search_router)
 app.include_router(backup_router)
+app.include_router(profile_router)
+app.include_router(query_router)

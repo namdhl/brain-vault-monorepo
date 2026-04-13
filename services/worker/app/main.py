@@ -14,7 +14,10 @@ from .config import (
     FAILED_JOBS_DIR,
     ITEMS_DIR,
     PROCESSED_JOBS_DIR,
+    PROMOTE_TO_BRAIN,
+    PROMOTE_TO_REFERENCE,
     QUEUED_JOBS_DIR,
+    VAULT_PROFILE,
     ensure_dirs,
 )
 from .retry_policy import classify_for_dlq, retry_wait_elapsed, should_retry
@@ -118,12 +121,37 @@ def process_job(job_path: Path) -> dict:
     _update_job_stage(job, job_path, "enriched")
     logger.info("stage_done", extra={"job_id": job_id, "item_id": item_id, "stage": "enriched"})
 
-    # Stage: enriched -> vault_exported
+    # Stage: enriched -> classified (obsidian-mind profile only)
+    classify_out = None
+    if VAULT_PROFILE == "obsidian-mind":
+        from .classify import classify
+        classify_out = classify(item, enrich_out, norm_out)
+        # Store entities on item for exporter access
+        item["_entities"] = enrich_out.entities
+        _update_job_stage(job, job_path, "classified")
+        logger.info("stage_done", extra={"job_id": job_id, "item_id": item_id, "stage": "classified"})
+
+    # Stage: classified -> vault_exported
     assets = process_assets_for_item(item)
     asset_paths = [a.get("vault_path") for a in assets if a.get("vault_path")]
-    note_path = export_item_to_vault(item, asset_paths=asset_paths, entities=enrich_out.entities)
+    if VAULT_PROFILE == "obsidian-mind":
+        from .export_obsidian_mind import export_item_to_vault_om
+        note_path = export_item_to_vault_om(item, asset_paths=asset_paths, classify_out=classify_out)
+    else:
+        note_path = export_item_to_vault(item, asset_paths=asset_paths, entities=enrich_out.entities)
     _update_job_stage(job, job_path, "vault_exported")
     logger.info("stage_done", extra={"job_id": job_id, "item_id": item_id, "stage": "vault_exported", "note_path": str(note_path)})
+
+    # Stage: vault_exported -> promoted (obsidian-mind profile only)
+    if VAULT_PROFILE == "obsidian-mind" and classify_out is not None:
+        if PROMOTE_TO_REFERENCE:
+            from .update_reference import maybe_update_reference
+            maybe_update_reference(item, classify_out, note_path)
+        if PROMOTE_TO_BRAIN:
+            from .update_brain import maybe_update_brain
+            maybe_update_brain(item, classify_out, note_path)
+        _update_job_stage(job, job_path, "promoted")
+        logger.info("stage_done", extra={"job_id": job_id, "item_id": item_id, "stage": "promoted"})
 
     # Stage: vault_exported -> completed
     item["status"] = "processed"
@@ -212,6 +240,12 @@ def process_all() -> list[dict]:
 def main() -> None:
     setup_logging()
     ensure_dirs()
+
+    # Bootstrap vault profile on startup (idempotent — skips if already done)
+    if VAULT_PROFILE == "obsidian-mind":
+        from .bootstrap import bootstrap_profile
+        bootstrap_profile()
+
     mode = sys.argv[1] if len(sys.argv) > 1 else "once"
     if mode != "once":
         raise SystemExit("Only 'once' mode is implemented in this scaffold.")
