@@ -2,3 +2,13 @@ fastapi
 uvicorn
 pydantic
 python-multipart
+# Postgres / ORM
+sqlalchemy>=2.0
+alembic
+psycopg2-binary
+# Slowapi for rate limiting
+slowapi
+# Redis queue (optional; only required when REDIS_URL is set)
+redis
+# JWT auth (optional; only required when JWT_AUTH_ENABLED=true)
+python-jose[cryptography]
