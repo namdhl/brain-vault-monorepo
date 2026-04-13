@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,21 +16,24 @@ from .config import (
     QUEUED_JOBS_DIR,
     ensure_dirs,
 )
+from .logging_config import setup_logging
 from .markdown import export_item_to_vault
 from .media import process_assets_for_item
 from .pipeline.enrich import enrich
 from .pipeline.normalize import NormalizeInput, normalize, save_normalize_artifact
 
+logger = logging.getLogger("brainvault.worker")
+
 
 class PermanentError(Exception):
-    """Error that should not be retried (corrupted data, unsupported input, etc.)."""
+    """Error that should not be retried."""
     def __init__(self, message: str, code: str = "PERMANENT_ERROR"):
         super().__init__(message)
         self.code = code
 
 
 class TransientError(Exception):
-    """Error that may succeed on retry (network issue, tmp file lock, etc.)."""
+    """Error that may succeed on retry."""
     def __init__(self, message: str, code: str = "TRANSIENT_ERROR"):
         super().__init__(message)
         self.code = code
@@ -63,27 +68,26 @@ def _mark_item_failed(item: dict, item_path: Path, error_code: str, error_messag
 
 
 def process_job(job_path: Path) -> dict:
+    t0 = time.monotonic()
     job = load_json(job_path)
     item_id = job["item_id"]
+    job_id = job["job_id"]
     item_path = ITEMS_DIR / f"{item_id}.json"
+
+    logger.info("job_start", extra={"job_id": job_id, "item_id": item_id, "stage": job.get("stage")})
 
     if not item_path.exists():
         raise PermanentError(f"Missing item file: {item_path}", "ITEM_NOT_FOUND")
 
     item = load_json(item_path)
 
-    # Idempotency: skip if note already exists and is valid
+    # Idempotency: skip if already processed
     existing_note = item.get("note_path")
     if existing_note and Path(existing_note).exists() and item.get("status") == "processed":
         destination = PROCESSED_JOBS_DIR / job_path.name
         shutil.move(str(job_path), destination)
-        return {
-            "job_id": job["job_id"],
-            "item_id": item_id,
-            "note_path": existing_note,
-            "status": "processed",
-            "skipped": True,
-        }
+        logger.info("job_skipped_idempotent", extra={"job_id": job_id, "item_id": item_id})
+        return {"job_id": job_id, "item_id": item_id, "note_path": existing_note, "status": "processed", "skipped": True}
 
     # Stage: raw_persisted -> normalize
     item["status"] = "processing"
@@ -92,13 +96,15 @@ def process_job(job_path: Path) -> dict:
 
     norm_out = normalize(NormalizeInput(item))
     save_normalize_artifact(item["id"], norm_out, ARTIFACTS_DIR)
+    if norm_out.warnings:
+        logger.warning("normalize_warnings", extra={"job_id": job_id, "item_id": item_id, "warnings": norm_out.warnings})
 
-    # Apply normalize results back to item (non-destructive: only set if not already set)
     if norm_out.language and not item.get("language"):
         item["language"] = norm_out.language
     if norm_out.canonical_hash and not item.get("canonical_hash"):
         item["canonical_hash"] = norm_out.canonical_hash
     _update_job_stage(job, job_path, "normalized")
+    logger.info("stage_done", extra={"job_id": job_id, "item_id": item_id, "stage": "normalized"})
 
     # Stage: normalized -> enriched
     enrich_out = enrich(item, norm_out.markdown)
@@ -106,17 +112,16 @@ def process_job(job_path: Path) -> dict:
         item["summary"] = enrich_out.summary
     if enrich_out.auto_tags:
         existing_tags = item.get("tags") or []
-        new_tags = existing_tags + [t for t in enrich_out.auto_tags if t not in existing_tags]
-        item["tags"] = new_tags
+        item["tags"] = existing_tags + [t for t in enrich_out.auto_tags if t not in existing_tags]
     _update_job_stage(job, job_path, "enriched")
+    logger.info("stage_done", extra={"job_id": job_id, "item_id": item_id, "stage": "enriched"})
 
     # Stage: enriched -> vault_exported
-    # Process any associated assets (copy to vault, enrich metadata)
     assets = process_assets_for_item(item)
     asset_paths = [a.get("vault_path") for a in assets if a.get("vault_path")]
-
     note_path = export_item_to_vault(item, asset_paths=asset_paths, entities=enrich_out.entities)
     _update_job_stage(job, job_path, "vault_exported")
+    logger.info("stage_done", extra={"job_id": job_id, "item_id": item_id, "stage": "vault_exported", "note_path": str(note_path)})
 
     # Stage: vault_exported -> completed
     item["status"] = "processed"
@@ -132,12 +137,12 @@ def process_job(job_path: Path) -> dict:
     destination = PROCESSED_JOBS_DIR / job_path.name
     shutil.move(str(job_path), destination)
 
-    return {
-        "job_id": job["job_id"],
-        "item_id": item_id,
-        "note_path": str(note_path),
-        "status": "processed",
-    }
+    duration_ms = round((time.monotonic() - t0) * 1000)
+    logger.info(
+        "job_completed",
+        extra={"job_id": job_id, "item_id": item_id, "note_path": str(note_path), "duration_ms": duration_ms},
+    )
+    return {"job_id": job_id, "item_id": item_id, "note_path": str(note_path), "status": "processed", "duration_ms": duration_ms}
 
 
 def process_all() -> list[dict]:
@@ -150,31 +155,29 @@ def process_all() -> list[dict]:
             error_code = getattr(exc, "code", "INTERNAL_ERROR")
             error_message = str(exc)
             failed_stage = "unknown"
-
-            # Try to update item with failure info
             try:
                 job = load_json(job_path)
                 failed_stage = job.get("stage", "unknown")
-                item_path = ITEMS_DIR / f"{job['item_id']}.json"
+                item_id = job.get("item_id", "?")
+                item_path = ITEMS_DIR / f"{item_id}.json"
                 if item_path.exists():
                     item = load_json(item_path)
                     _mark_item_failed(item, item_path, error_code, error_message, failed_stage)
             except Exception:
-                pass
-
+                item_id = "?"
+            logger.error(
+                "job_failed",
+                extra={"job_id": job_id, "item_id": item_id, "error_code": error_code, "failed_stage": failed_stage},
+                exc_info=True,
+            )
             FAILED_JOBS_DIR.mkdir(parents=True, exist_ok=True)
             shutil.move(str(job_path), FAILED_JOBS_DIR / job_path.name)
-            results.append({
-                "job_id": job_id,
-                "status": "failed",
-                "error_code": error_code,
-                "error_message": error_message,
-                "failed_stage": failed_stage,
-            })
+            results.append({"job_id": job_id, "status": "failed", "error_code": error_code, "error_message": error_message, "failed_stage": failed_stage})
     return results
 
 
 def main() -> None:
+    setup_logging()
     ensure_dirs()
     mode = sys.argv[1] if len(sys.argv) > 1 else "once"
     if mode != "once":
@@ -182,11 +185,11 @@ def main() -> None:
 
     results = process_all()
     if not results:
-        print("No queued jobs found.")
+        logger.info("no_queued_jobs")
         return
 
     for row in results:
-        print(json.dumps(row, ensure_ascii=False))
+        logger.info("job_result", extra=row)
 
 
 if __name__ == "__main__":
