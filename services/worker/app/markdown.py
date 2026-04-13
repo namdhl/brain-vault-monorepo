@@ -45,7 +45,7 @@ def build_frontmatter(item: dict[str, Any], asset_paths: list[str] | None = None
     return yaml.safe_dump(payload, sort_keys=False, allow_unicode=True).strip()
 
 
-def build_body(item: dict[str, Any], asset_paths: list[str] | None = None) -> str:
+def build_body(item: dict[str, Any], asset_paths: list[str] | None = None, entities: list[str] | None = None) -> str:
     title = item.get("title") or f"Untitled {item['type']}"
     content = item.get("content") or ""
     original_url = item.get("original_url")
@@ -81,7 +81,13 @@ def build_body(item: dict[str, Any], asset_paths: list[str] | None = None) -> st
     elif item_type in ("image", "video", "document"):
         lines.extend(["## Assets", "_No assets found for this item._", ""])
 
-    lines.extend(["## Entities", "_Entity extraction not yet implemented._", ""])
+    if entities:
+        lines.append("## Entities")
+        for ent in entities:
+            lines.append(f"- [[{ent}]]")
+        lines.append("")
+    else:
+        lines.extend(["## Entities", "_Entity extraction not yet implemented._", ""])
 
     lines.extend(
         [
@@ -96,9 +102,9 @@ def build_body(item: dict[str, Any], asset_paths: list[str] | None = None) -> st
     return "\n".join(lines).strip()
 
 
-def render_markdown(item: dict[str, Any], asset_paths: list[str] | None = None) -> str:
+def render_markdown(item: dict[str, Any], asset_paths: list[str] | None = None, entities: list[str] | None = None) -> str:
     frontmatter = build_frontmatter(item, asset_paths=asset_paths)
-    body = build_body(item, asset_paths=asset_paths)
+    body = build_body(item, asset_paths=asset_paths, entities=entities)
     return f"---\n{frontmatter}\n---\n\n{body}\n"
 
 
@@ -111,12 +117,12 @@ def _make_note_filename(item: dict[str, Any]) -> str:
     return f"{suffix}.md"
 
 
-def export_item_to_vault(item: dict[str, Any], asset_paths: list[str] | None = None) -> Path:
+def export_item_to_vault(item: dict[str, Any], asset_paths: list[str] | None = None, entities: list[str] | None = None) -> Path:
     created = datetime.fromisoformat(item["created_at"].replace("Z", "+00:00"))
     folder = VAULT_INBOX_DIR / created.strftime("%Y") / created.strftime("%m")
     folder.mkdir(parents=True, exist_ok=True)
 
     filename = _make_note_filename(item)
     note_path = folder / filename
-    note_path.write_text(render_markdown(item, asset_paths=asset_paths), encoding="utf-8")
+    note_path.write_text(render_markdown(item, asset_paths=asset_paths, entities=entities), encoding="utf-8")
     return note_path

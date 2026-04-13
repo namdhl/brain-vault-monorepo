@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import (
+    ARTIFACTS_DIR,
     FAILED_JOBS_DIR,
     ITEMS_DIR,
     PROCESSED_JOBS_DIR,
@@ -15,6 +16,8 @@ from .config import (
 )
 from .markdown import export_item_to_vault
 from .media import process_assets_for_item
+from .pipeline.enrich import enrich
+from .pipeline.normalize import NormalizeInput, normalize, save_normalize_artifact
 
 
 class PermanentError(Exception):
@@ -82,18 +85,37 @@ def process_job(job_path: Path) -> dict:
             "skipped": True,
         }
 
-    # Stage: raw_persisted -> processing
+    # Stage: raw_persisted -> normalize
     item["status"] = "processing"
     item["updated_at"] = _now()
     save_json(item_path, item)
+
+    norm_out = normalize(NormalizeInput(item))
+    save_normalize_artifact(item["id"], norm_out, ARTIFACTS_DIR)
+
+    # Apply normalize results back to item (non-destructive: only set if not already set)
+    if norm_out.language and not item.get("language"):
+        item["language"] = norm_out.language
+    if norm_out.canonical_hash and not item.get("canonical_hash"):
+        item["canonical_hash"] = norm_out.canonical_hash
     _update_job_stage(job, job_path, "normalized")
 
-    # Stage: normalized -> vault_exported
+    # Stage: normalized -> enriched
+    enrich_out = enrich(item, norm_out.markdown)
+    if enrich_out.summary and not item.get("summary"):
+        item["summary"] = enrich_out.summary
+    if enrich_out.auto_tags:
+        existing_tags = item.get("tags") or []
+        new_tags = existing_tags + [t for t in enrich_out.auto_tags if t not in existing_tags]
+        item["tags"] = new_tags
+    _update_job_stage(job, job_path, "enriched")
+
+    # Stage: enriched -> vault_exported
     # Process any associated assets (copy to vault, enrich metadata)
     assets = process_assets_for_item(item)
     asset_paths = [a.get("vault_path") for a in assets if a.get("vault_path")]
 
-    note_path = export_item_to_vault(item, asset_paths=asset_paths)
+    note_path = export_item_to_vault(item, asset_paths=asset_paths, entities=enrich_out.entities)
     _update_job_stage(job, job_path, "vault_exported")
 
     # Stage: vault_exported -> completed
