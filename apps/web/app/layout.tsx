@@ -1,5 +1,6 @@
 import "./globals.css";
 import { RegisterServiceWorker } from "@/components/register-sw";
+import { Nav } from "@/components/nav";
 
 export const metadata = {
   title: "Brain Vault",
@@ -13,6 +14,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <RegisterServiceWorker />
+        <Nav />
         {children}
       </body>
     </html>
