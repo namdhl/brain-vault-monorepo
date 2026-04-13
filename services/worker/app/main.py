@@ -14,6 +14,7 @@ from .config import (
     ensure_dirs,
 )
 from .markdown import export_item_to_vault
+from .media import process_assets_for_item
 
 
 class PermanentError(Exception):
@@ -88,7 +89,11 @@ def process_job(job_path: Path) -> dict:
     _update_job_stage(job, job_path, "normalized")
 
     # Stage: normalized -> vault_exported
-    note_path = export_item_to_vault(item)
+    # Process any associated assets (copy to vault, enrich metadata)
+    assets = process_assets_for_item(item)
+    asset_paths = [a.get("vault_path") for a in assets if a.get("vault_path")]
+
+    note_path = export_item_to_vault(item, asset_paths=asset_paths)
     _update_job_stage(job, job_path, "vault_exported")
 
     # Stage: vault_exported -> completed
