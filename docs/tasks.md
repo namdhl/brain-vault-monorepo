@@ -88,13 +88,13 @@
 ## Phase 4 — Search, jobs control, observability
 
 ### 4.1 Jobs API
-- [ ] `GET /v1/jobs/{job_id}`.
-- [ ] `POST /v1/jobs/{job_id}/retry`.
-- [ ] Ghi lịch sử attempt/retry cho mỗi job.
+- [x] `GET /v1/jobs/{job_id}`.
+- [x] `POST /v1/jobs/{job_id}/retry`.
+- [x] Ghi lịch sử attempt/retry cho mỗi job.
 
 ### 4.2 Search
-- [ ] `GET /v1/search` với filter `q,type,tag,status,source,date_from,date_to`.
-- [ ] Trả về snippet/hightlight tối thiểu cho kết quả.
+- [x] `GET /v1/search` với filter `q,type,tag,status,source,date_from,date_to`.
+- [x] Trả về snippet/hightlight tối thiểu cho kết quả.
 
 ### 4.3 Logging & metrics
 - [ ] Structured logs với `request_id,item_id,job_id,stage,status,duration_ms,error_code`.
@@ -141,6 +141,7 @@ Một phase được xem là hoàn thành khi:
 - 2026-04-13 | [Phase 1.2] | Worker pipeline stages + error handling | Status: [x] | Notes: Thêm PermanentError/TransientError class, stage tracking (raw_persisted→normalized→vault_exported→completed), idempotency check (skip nếu note đã tồn tại + status=processed), lưu error_code/error_message/failed_stage vào item và job khi fail. | Files: `services/worker/app/main.py`
 - 2026-04-13 | [Phase 1.3] | Vault exporter improvements | Status: [x] | Notes: _slugify() dùng unicodedata NFKD+ASCII để tạo slug an toàn, giới hạn 80 ký tự trước suffix, frontmatter đầy đủ (status, processed_at, language, canonical_hash, summary khi có), body thêm Summary section và Entities placeholder, Processing Notes cập nhật. | Files: `services/worker/app/markdown.py`
 - 2026-04-13 | [Phase 1.4] | Web app screens | Status: [x] | Notes: Tạo Nav component (sticky, active link), /items (table + filter by status), /items/[id] (metadata + content + error detail), /jobs (stat cards + tab by status + refresh), globals.css bổ sung badge/table/filter/stat-card/detail styles. | Files: `apps/web/components/nav.tsx`, `apps/web/app/items/page.tsx`, `apps/web/app/items/[id]/page.tsx`, `apps/web/app/jobs/page.tsx`, `apps/web/app/layout.tsx`, `apps/web/app/page.tsx`, `apps/web/app/globals.css`
+- 2026-04-13 | [Phase 4.1+4.2] | Jobs API + Search API | Status: [x] | Notes: routes/jobs.py - GET /v1/jobs/{id}, POST /v1/jobs/{id}/retry (re-enqueue với attempt+1, archive old job), GET /v1/jobs list scan 3 dirs. routes/search.py - GET /v1/search với 7 filter params, snippet highlight quanh match, limit 20. | Files: `services/api/app/routes/jobs.py`, `services/api/app/routes/search.py`, `services/api/app/main.py`
 - 2026-04-13 | [Phase 3.1+3.2+3.3] | Normalize, Enrichment, Dedupe | Status: [x] | Notes: pipeline/normalize.py - NormalizeInput/Output contract v1, _html_to_markdown() stdlib, _fetch_url_content() urllib, _detect_language(), save_normalize_artifact(). pipeline/enrich.py - _extract_summary(), _extract_keywords(), _extract_entities() (CamelCase+ACRONYM+known tech). dedup.py - Idempotency-Key store (file-based), dedupe index (JSON), build_dedupe_key() per type. routes/items.py - Idempotency-Key header + force_save param. | Files: `services/worker/app/pipeline/normalize.py`, `services/worker/app/pipeline/enrich.py`, `services/api/app/dedup.py`, `services/api/app/routes/items.py`, `services/worker/app/main.py`
 - 2026-04-13 | [Phase 2.3] | Worker media support | Status: [x] | Notes: media.py - _probe_image() đọc PNG/JPEG header cho width/height, copy_asset_to_vault() copy file vào vault/Assets/YYYY/MM/DD/<item_id>/, process_assets_for_item() gọi trước export. markdown.py nhận asset_paths, render ## Assets section với wikilinks, frontmatter thêm asset_paths. | Files: `services/worker/app/media.py`, `services/worker/app/markdown.py`, `services/worker/app/main.py`, `services/worker/app/config.py`
 - 2026-04-13 | [Phase 2.1+2.2] | Upload API + Asset modeling | Status: [x] | Notes: POST /v1/uploads/init (MIME+size validation), POST /v1/uploads/{id}/file (streaming multipart, chunk read), DELETE /v1/uploads/{id}, POST /v1/items/from-upload (create Item+Asset from session), GET /v1/items/{id}/assets. AssetRecord schema, UploadSession schema, ALLOWED_MIME_TYPES+MAX_UPLOAD_BYTES config. | Files: `services/api/app/config.py`, `services/api/app/schemas.py`, `services/api/app/storage.py`, `services/api/app/routes/uploads.py`, `services/api/app/routes/assets.py`, `services/api/app/main.py`
