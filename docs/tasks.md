@@ -26,9 +26,9 @@
 - [x] Thêm chuẩn response lỗi thống nhất (`error.code`, `error.message`, `details`).
 
 ### 1.2 Worker pipeline local
-- [ ] Chuẩn hóa stage pipeline: `ingest_received -> raw_persisted -> normalized -> enriched -> vault_exported -> completed`.
-- [ ] Bổ sung phân loại lỗi (`transient/permanent/unsupported/...`) và lưu `error_code`, `error_message`, `failed_stage`.
-- [ ] Đảm bảo idempotency tối thiểu (rerun không tạo note trùng khi output đã hợp lệ).
+- [x] Chuẩn hóa stage pipeline: `ingest_received -> raw_persisted -> normalized -> enriched -> vault_exported -> completed`.
+- [x] Bổ sung phân loại lỗi (`transient/permanent/unsupported/...`) và lưu `error_code`, `error_message`, `failed_stage`.
+- [x] Đảm bảo idempotency tối thiểu (rerun không tạo note trùng khi output đã hợp lệ).
 
 ### 1.3 Vault exporter
 - [ ] Chuẩn hóa frontmatter tối thiểu: `id,type,source,created_at,updated_at,status,tags,original_url`.
@@ -138,3 +138,4 @@ Một phase được xem là hoàn thành khi:
 
 - 2026-04-13 | [Planning] | Tạo task board ban đầu từ detailed spec | Status: [x] | Notes: Chia theo 5 phase để triển khai tuần tự, có checkpoint và DoD. | Files/PR: `docs/tasks.md`
 - 2026-04-13 | [Phase 1.1] | Backend schema & contracts | Status: [x] | Notes: Mở rộng ItemRecord (processed_at, language, canonical_hash, summary, error fields), thêm ItemStatus enum, validate payload (title max 500, content max 50000, tags max 20), tạo errors.py với api_error helper, job schema cập nhật stage/status/attempt. | Files: `services/api/app/schemas.py`, `services/api/app/errors.py`, `services/api/app/routes/items.py`
+- 2026-04-13 | [Phase 1.2] | Worker pipeline stages + error handling | Status: [x] | Notes: Thêm PermanentError/TransientError class, stage tracking (raw_persisted→normalized→vault_exported→completed), idempotency check (skip nếu note đã tồn tại + status=processed), lưu error_code/error_message/failed_stage vào item và job khi fail. | Files: `services/worker/app/main.py`
