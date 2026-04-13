@@ -51,14 +51,14 @@
 ## Phase 2 — Upload & asset pipeline
 
 ### 2.1 API uploads
-- [ ] Thêm `POST /v1/uploads/init` (metadata upload session).
-- [ ] Thêm `POST /v1/items/from-upload` để tạo item từ upload.
-- [ ] Giới hạn kích thước + MIME validation.
+- [x] Thêm `POST /v1/uploads/init` (metadata upload session).
+- [x] Thêm `POST /v1/items/from-upload` để tạo item từ upload.
+- [x] Giới hạn kích thước + MIME validation.
 
 ### 2.2 Asset modeling
-- [ ] Tạo model `Asset` tách khỏi `Item`.
-- [ ] Lưu path theo chuẩn `Assets/YYYY/MM/DD/<item_id>/...`.
-- [ ] Gắn quan hệ item-assets trong API response item detail.
+- [x] Tạo model `Asset` tách khỏi `Item`.
+- [x] Lưu path theo chuẩn `Assets/YYYY/MM/DD/<item_id>/...`.
+- [x] Gắn quan hệ item-assets trong API response item detail.
 
 ### 2.3 Worker cho media cơ bản
 - [ ] Với image/video: lưu metadata tối thiểu (mime, size, duration/resolution nếu có).
@@ -141,4 +141,5 @@ Một phase được xem là hoàn thành khi:
 - 2026-04-13 | [Phase 1.2] | Worker pipeline stages + error handling | Status: [x] | Notes: Thêm PermanentError/TransientError class, stage tracking (raw_persisted→normalized→vault_exported→completed), idempotency check (skip nếu note đã tồn tại + status=processed), lưu error_code/error_message/failed_stage vào item và job khi fail. | Files: `services/worker/app/main.py`
 - 2026-04-13 | [Phase 1.3] | Vault exporter improvements | Status: [x] | Notes: _slugify() dùng unicodedata NFKD+ASCII để tạo slug an toàn, giới hạn 80 ký tự trước suffix, frontmatter đầy đủ (status, processed_at, language, canonical_hash, summary khi có), body thêm Summary section và Entities placeholder, Processing Notes cập nhật. | Files: `services/worker/app/markdown.py`
 - 2026-04-13 | [Phase 1.4] | Web app screens | Status: [x] | Notes: Tạo Nav component (sticky, active link), /items (table + filter by status), /items/[id] (metadata + content + error detail), /jobs (stat cards + tab by status + refresh), globals.css bổ sung badge/table/filter/stat-card/detail styles. | Files: `apps/web/components/nav.tsx`, `apps/web/app/items/page.tsx`, `apps/web/app/items/[id]/page.tsx`, `apps/web/app/jobs/page.tsx`, `apps/web/app/layout.tsx`, `apps/web/app/page.tsx`, `apps/web/app/globals.css`
+- 2026-04-13 | [Phase 2.1+2.2] | Upload API + Asset modeling | Status: [x] | Notes: POST /v1/uploads/init (MIME+size validation), POST /v1/uploads/{id}/file (streaming multipart, chunk read), DELETE /v1/uploads/{id}, POST /v1/items/from-upload (create Item+Asset from session), GET /v1/items/{id}/assets. AssetRecord schema, UploadSession schema, ALLOWED_MIME_TYPES+MAX_UPLOAD_BYTES config. | Files: `services/api/app/config.py`, `services/api/app/schemas.py`, `services/api/app/storage.py`, `services/api/app/routes/uploads.py`, `services/api/app/routes/assets.py`, `services/api/app/main.py`
 - 2026-04-13 | [Phase 1.5] | Telegram bot improvements | Status: [x] | Notes: _detect_type() tách riêng, set original_url cho link type, thêm _send_message() reply lại user (best-effort, cần TELEGRAM_BOT_TOKEN), response trả về item_id + status thay vì created_item object. | Files: `services/telegram-bot/app/main.py`
