@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Brain Vault Desktop",
+  "version": "0.1.0",
+  "identifier": "com.example.brainvault",
+  "build": {
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../web/out"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Brain Vault Desktop",
+        "width": 1280,
+        "height": 900,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}

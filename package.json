@@ -1,0 +1,10 @@
+{
+  "name": "brain-vault-monorepo",
+  "private": true,
+  "packageManager": "pnpm@latest",
+  "scripts": {
+    "dev:web": "pnpm --dir apps/web dev",
+    "typecheck:shared": "pnpm --dir packages/shared build",
+    "tree": "find . -maxdepth 4 | sort"
+  }
+}
