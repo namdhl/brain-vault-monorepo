@@ -116,3 +116,89 @@ class QueryResponse(BaseModel):
     related_notes: list[str]
     answer_style: str
     fast_path: bool
+
+
+# ---------------------------------------------------------------------------
+# Phase 6: Reverse Sync schemas
+# ---------------------------------------------------------------------------
+
+SyncDirection = Literal["server_to_vault", "vault_to_server", "bidirectional"]
+SyncStatus = Literal["synced", "pending", "conflicted", "error", "skipped"]
+SyncEventType = Literal["created", "updated", "deleted", "renamed", "conflict_detected", "conflict_resolved", "error"]
+ConflictResolution = Literal["accept_vault", "accept_server", "manual"]
+
+
+class SyncState(BaseModel):
+    note_id: str
+    vault_path: str
+    last_synced_hash: str | None = None
+    last_synced_version: int = 0
+    last_synced_at: str | None = None
+    status: SyncStatus = "pending"
+    sync_direction: SyncDirection = "server_to_vault"
+
+
+class SyncEvent(BaseModel):
+    event_id: str
+    note_id: str
+    event_type: SyncEventType
+    source: str
+    vault_path: str | None = None
+    payload_summary: str = ""
+    created_at: str
+
+
+class SyncConflict(BaseModel):
+    conflict_id: str
+    note_id: str
+    vault_path: str
+    server_hash: str | None = None
+    vault_hash: str | None = None
+    server_content: str | None = None
+    vault_content: str | None = None
+    status: Literal["open", "resolved"] = "open"
+    resolution: ConflictResolution | None = None
+    created_at: str
+    resolved_at: str | None = None
+
+
+class NoteVersion(BaseModel):
+    version_id: str
+    note_id: str
+    content_snapshot: str
+    metadata_snapshot: dict
+    version: int
+    source: str
+    created_at: str
+
+
+class ScanRequest(BaseModel):
+    dirs: list[str] | None = None   # None = scan all allowed dirs
+    force: bool = False              # Force re-scan even if recently scanned
+
+
+class ScanResult(BaseModel):
+    scanned: int
+    changed: int
+    new: int
+    deleted: int
+    errors: int
+    conflicts: int
+    duration_ms: int
+
+
+class ImportNoteRequest(BaseModel):
+    vault_path: str
+    dry_run: bool = False
+
+
+class ImportNoteResult(BaseModel):
+    vault_path: str
+    note_id: str | None = None
+    status: str
+    message: str
+
+
+class ConflictResolveRequest(BaseModel):
+    resolution: ConflictResolution
+    custom_content: str | None = None   # For manual resolution

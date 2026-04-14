@@ -18,6 +18,7 @@ from .routes.metrics import router as metrics_router
 from .routes.profile import router as profile_router
 from .routes.query import router as query_router
 from .routes.search import router as search_router
+from .routes.sync import router as sync_router
 from .routes.uploads import router as uploads_router
 
 setup_logging(os.getenv("LOG_LEVEL", "INFO"))
@@ -55,3 +56,4 @@ app.include_router(search_router)
 app.include_router(backup_router)
 app.include_router(profile_router)
 app.include_router(query_router)
+app.include_router(sync_router)

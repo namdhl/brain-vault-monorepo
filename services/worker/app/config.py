@@ -38,6 +38,22 @@ PROMOTE_TO_BRAIN = os.getenv("BRAINVAULT_PROMOTE_TO_BRAIN", "true").lower() == "
 QMD_ENABLED = os.getenv("BRAINVAULT_QMD_ENABLED", "false").lower() == "true"
 
 
+# Reverse sync (Phase 6)
+SYNC_DIR = DATA_DIR / "sync"
+SYNC_STATES_DIR = SYNC_DIR / "states"
+SYNC_EVENTS_DIR = SYNC_DIR / "events"
+SYNC_CONFLICTS_DIR = SYNC_DIR / "conflicts"
+SYNC_VERSIONS_DIR = SYNC_DIR / "versions"
+
+# Whitelist of vault dirs allowed for reverse sync
+SYNC_ALLOWED_DIRS: list[str] = [
+    d.strip()
+    for d in os.getenv("BRAINVAULT_SYNC_ALLOWED_DIRS", "Inbox,Notes,reference/curated,brain/capture").split(",")
+    if d.strip()
+]
+SYNC_MAX_FILE_BYTES = int(os.getenv("BRAINVAULT_SYNC_MAX_FILE_BYTES", str(5 * 1024 * 1024)))  # 5 MB
+
+
 def ensure_dirs() -> None:
     for path in [
         ITEMS_DIR,
@@ -74,5 +90,10 @@ def ensure_dirs() -> None:
         VAULT_BASES_DIR,
         VAULT_TEMPLATES_DIR,
         VAULT_PROFILE_META_DIR,
+        # reverse sync runtime dirs
+        SYNC_STATES_DIR,
+        SYNC_EVENTS_DIR,
+        SYNC_CONFLICTS_DIR,
+        SYNC_VERSIONS_DIR,
     ]:
         path.mkdir(parents=True, exist_ok=True)
