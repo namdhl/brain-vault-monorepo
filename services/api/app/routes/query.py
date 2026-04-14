@@ -78,12 +78,21 @@ def query_vault(payload: QueryRequest) -> Any:
     explicit = payload.filters.model_dump(exclude_none=True)
     merged_filters.update(explicit)
 
-    # Retrieve items
-    items = query_index_mod.retrieve_items(
-        text_query,
-        merged_filters,
-        limit=payload.limit,
-    )
+    # Retrieve items — use hybrid (QMD) when enabled, else metadata filter
+    import os
+    qmd_enabled = os.getenv("BRAINVAULT_QMD_ENABLED", "false").lower() == "true"
+    if qmd_enabled and hasattr(query_index_mod, "retrieve_hybrid"):
+        items = query_index_mod.retrieve_hybrid(
+            text_query,
+            merged_filters,
+            limit=payload.limit,
+        )
+    else:
+        items = query_index_mod.retrieve_items(
+            text_query,
+            merged_filters,
+            limit=payload.limit,
+        )
 
     # Determine path
     fast_path = query_intent_mod.is_fast_path(text_query, merged_filters)

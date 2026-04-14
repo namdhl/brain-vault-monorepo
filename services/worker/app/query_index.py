@@ -1,8 +1,11 @@
 """
 Query index: retrieves items matching a query from the local item store.
 
-This is the Phase 4 MVP implementation — uses file-based JSON storage
-(runtime/items/) with in-memory filtering and text scoring.
+Phase 4: file-based JSON storage (runtime/items/) with in-memory filtering
+and text scoring.
+
+Phase 5: when QMD_ENABLED=true, retrieve_hybrid() merges metadata results with
+QMD vector/hybrid results for higher-quality retrieval.
 
 The module interface is designed so that swapping to Postgres FTS / pgvector
 only requires changing `retrieve_items()` without touching callers.
@@ -14,7 +17,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .config import ITEMS_DIR
+from .config import ITEMS_DIR, QMD_ENABLED
 
 
 def _load_all_items() -> list[dict[str, Any]]:
@@ -117,6 +120,55 @@ def retrieve_items(
     scored.sort(key=lambda x: x[1], reverse=True)
 
     return [item for item, _ in scored[:limit]]
+
+
+def retrieve_hybrid(
+    query: str,
+    filters: dict[str, str],
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """
+    Phase 5: Hybrid retrieval — merge metadata filter results with QMD results.
+
+    Only active when QMD_ENABLED=true. Falls back to retrieve_items() when QMD
+    is disabled or unavailable.
+    """
+    if not QMD_ENABLED:
+        return retrieve_items(query, filters, limit)
+
+    from .qmd_search import qmd_hybrid, qmd_results_to_items
+
+    # Metadata path
+    meta_items = retrieve_items(query, filters, limit=limit * 2)
+
+    # QMD hybrid path (vault-level search)
+    qmd_raw = qmd_hybrid(query, limit=limit * 2)
+    qmd_items = qmd_results_to_items(qmd_raw)
+
+    # Merge by note_path / id, prefer metadata items (have full record)
+    seen: set[str] = set()
+    merged: list[tuple[dict[str, Any], float]] = []
+
+    for item in meta_items:
+        key = item.get("note_path") or item.get("id", "")
+        if key and key not in seen:
+            seen.add(key)
+            merged.append((item, 1.0))  # metadata items get base score 1.0
+
+    for item in qmd_items:
+        key = item.get("note_path") or item.get("id", "")
+        if key and key not in seen:
+            seen.add(key)
+            merged.append((item, item.get("_qmd_score", 0.5)))
+        elif key in seen:
+            # Boost score for items appearing in both results
+            for i, (existing, score) in enumerate(merged):
+                if (existing.get("note_path") or existing.get("id")) == key:
+                    merged[i] = (existing, score + item.get("_qmd_score", 0.5))
+                    break
+
+    merged.sort(key=lambda x: x[1], reverse=True)
+    return [item for item, _ in merged[:limit]]
 
 
 def build_excerpts(items: list[dict[str, Any]], query: str, max_chars: int = 300) -> list[dict[str, Any]]:
